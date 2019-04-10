@@ -21,7 +21,20 @@ Once the package lands configure the development.yaml file to suit your data bas
   - **name:** name of the database
   - **db:** name of the table in the data base where the contact entries reside
   
- Ensure your postgres database is running and configured.
+ Ensure your postgres database is running and configured.<br/><br/>
+ **[PSQL download windows](https://www.postgresql.org/download/windows/)**<br/>
+ **[PSQL download mac](https://www.postgresql.org/download/macosx/)**<br/>
+ **[PSQL Create Database](http://www.postgresqltutorial.com/postgresql-create-database/)**<br/><br/>
+ **PSQL Create Table**
+ ```
+    CREATE TABLE table_name (
+        id SERIAL PRIMARY KEY,
+        firstName TEXT,
+        lastName TEXT,
+        email TEXT UNIQUE NOT NULL,
+        phone TEXT
+    );
+ ```
  
  Run commands: 
  <br/>
