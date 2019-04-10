@@ -12,7 +12,7 @@ import (
 	r "github.com/squanchersquanch/contacts/services/routes"
 )
 
-// NewRouter ...
+// NewRouter creates a new router with connecters and routes wrapped with logging
 func NewRouter(db *sql.DB, config *config.Config) *mux.Router {
 	c := connectors.NewConnector(db, config)
 	router := mux.NewRouter().StrictSlash(true)
