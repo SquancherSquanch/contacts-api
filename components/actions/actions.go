@@ -14,16 +14,17 @@ import (
 
 	"github.com/gocarina/gocsv"
 	"github.com/squanchersquanch/contacts/models"
+	"github.com/squanchersquanch/contacts/services/config"
 )
 
 // sql constants
 const (
-	selectFrom      = "SELECT * FROM entries;"
-	selectFromWhere = "SELECT * FROM entries WHERE id='%s';"
-	deleteFrom      = "DELETE FROM entries WHERE id=$1;"
-	update          = `UPDATE entries SET firstName='%s', lastName='%s', email='%s', phone='%s' WHERE id='%s';`
+	selectFrom      = "SELECT * FROM %s;"
+	selectFromWhere = "SELECT * FROM %s WHERE id='%s';"
+	deleteFrom      = "DELETE FROM %s WHERE id=$1;"
+	update          = `UPDATE %s SET firstName='%s', lastName='%s', email='%s', phone='%s' WHERE id='%s';`
 
-	insertInto = `INSERT INTO entries (firstName, lastName, email, phone)
+	insertInto = `INSERT INTO %s (firstName, lastName, email, phone)
 					VALUES ($1, $2, $3, $4)
 					RETURNING id;`
 
@@ -63,15 +64,18 @@ type Actions interface {
 
 // actions is the implementation of the Actions interface
 type actions struct {
-	db *sql.DB
+	db     *sql.DB
+	config *config.Config
 }
 
 // NewActions creates a new action interface
 func NewActions(
 	db *sql.DB,
+	config *config.Config,
 ) Actions {
 	return &actions{
-		db: db,
+		db:     db,
+		config: config,
 	}
 }
 
@@ -87,8 +91,8 @@ func (a *actions) CreateRow(w http.ResponseWriter, r *http.Request) {
 		a.handleError(w, err, http.StatusInternalServerError)
 		return
 	}
-
-	id, err := a.doCreateEntry(insertInto, contact)
+	sqlStatement := fmt.Sprintf(insertInto, a.config.Service.DB)
+	id, err := a.doCreateEntry(sqlStatement, contact)
 	if err != nil {
 		a.handleError(w, err, http.StatusInternalServerError)
 		return
@@ -100,7 +104,8 @@ func (a *actions) CreateRow(w http.ResponseWriter, r *http.Request) {
 func (a *actions) ReadRows(w http.ResponseWriter, urlQuearies ...string) {
 	entries := models.Entries{}
 	if len(urlQuearies) == 0 || urlQuearies == nil {
-		entries = a.doGetEntries(w, selectFrom, commandQuery)
+		sqlStatement := fmt.Sprintf(selectFrom, a.config.Service.DB)
+		entries = a.doGetEntries(w, sqlStatement, commandQuery)
 	} else {
 		// TODO: validate id (this could be set to a helper method)
 		_, err := strconv.Atoi(urlQuearies[0])
@@ -109,7 +114,7 @@ func (a *actions) ReadRows(w http.ResponseWriter, urlQuearies ...string) {
 			return
 		}
 
-		sqlStatement := fmt.Sprintf(selectFromWhere, urlQuearies[0])
+		sqlStatement := fmt.Sprintf(selectFromWhere, a.config.Service.DB, urlQuearies[0])
 		entries = a.doGetEntries(w, sqlStatement, commandQueryRow)
 	}
 
@@ -127,7 +132,8 @@ func (a *actions) UpdateRow(w http.ResponseWriter, r *http.Request) {
 		a.handleError(w, err, http.StatusInternalServerError)
 		return
 	}
-	sqlStatement := fmt.Sprintf(update, contact.FirstName, contact.LastName, contact.Email, contact.Phone, contact.ID)
+	sqlStatement := fmt.Sprintf(update, a.config.Service.DB, contact.FirstName, contact.LastName, contact.Email, contact.Phone, contact.ID)
+
 	err = a.doUpdateEntry(sqlStatement)
 	if err != nil {
 		a.handleError(w, err, http.StatusInternalServerError)
@@ -138,7 +144,7 @@ func (a *actions) UpdateRow(w http.ResponseWriter, r *http.Request) {
 
 // DeleteRow action deletes a contact from the entries database
 func (a *actions) DeleteRow(w http.ResponseWriter, urlQuearies string) {
-	sqlStatement := deleteFrom
+	sqlStatement := fmt.Sprintf(deleteFrom, a.config.Service.DB)
 	row, err := a.db.Exec(sqlStatement, urlQuearies)
 	if err != nil {
 		a.handleError(w, err, http.StatusInternalServerError)
@@ -226,7 +232,7 @@ func (a *actions) doImportContacts(file *os.File) ([]*models.Contact, error) {
 	}
 	for _, contact := range contacts {
 		if contact.ID != "" {
-			sqlStatement := fmt.Sprintf(update, contact.FirstName, contact.LastName, contact.Email, contact.Phone, contact.ID)
+			sqlStatement := fmt.Sprintf(update, a.config.Service.DB, contact.FirstName, contact.LastName, contact.Email, contact.Phone, contact.ID)
 			err = a.doUpdateEntry(sqlStatement)
 			if err != nil {
 				switch err {
@@ -238,7 +244,8 @@ func (a *actions) doImportContacts(file *os.File) ([]*models.Contact, error) {
 
 			}
 		} else {
-			_, err = a.doCreateEntry(insertInto, *contact)
+			sqlStatement := fmt.Sprintf(insertInto, a.config.Service.DB)
+			_, err = a.doCreateEntry(sqlStatement, *contact)
 			if err != nil {
 				switch err {
 				case errors.New(duplicateEntry):
@@ -259,7 +266,8 @@ func (a *actions) doImportContacts(file *os.File) ([]*models.Contact, error) {
 
 // doExportContacts is a helper function that adapts contacts to a csv file
 func (a *actions) doExportContacts(w http.ResponseWriter) (*os.File, error) {
-	entries := a.doGetEntries(w, selectFrom, commandQuery)
+	sqlStatement := fmt.Sprintf(selectFrom, a.config.Service.DB)
+	entries := a.doGetEntries(w, sqlStatement, commandQuery)
 
 	contactsFile, err := ioutil.TempFile(os.TempDir(), "tmp.*.csv")
 	if err != nil {

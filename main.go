@@ -22,7 +22,7 @@ func main() {
 	db := postgres.NewDataBase(config)
 
 	//  create a new http client
-	router := router.NewRouter(db)
+	router := router.NewRouter(db, config)
 
 	log.Fatal(http.ListenAndServe(":3000", router))
 }

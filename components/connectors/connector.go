@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	a "github.com/squanchersquanch/contacts/components/actions"
+	"github.com/squanchersquanch/contacts/services/config"
 )
 
 const (
@@ -25,13 +26,15 @@ type Connector interface {
 // connector is an implementation of the Connector interface
 type connector struct {
 	actions a.Actions
+	config  *config.Config
 }
 
 // NewConnector creates a new instance of Connector
 func NewConnector(
 	db *sql.DB,
+	config *config.Config,
 ) Connector {
-	actions := a.NewActions(db)
+	actions := a.NewActions(db, config)
 	return &connector{
 		actions: actions,
 	}

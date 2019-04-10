@@ -28,6 +28,7 @@ type PostgresConfig struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Name     string `yaml:"name"`
+	DB       string `yaml:"db"`
 }
 
 func load(config interface{}, fname string) error {
